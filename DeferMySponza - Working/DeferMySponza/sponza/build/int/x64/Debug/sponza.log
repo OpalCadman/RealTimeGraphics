@@ -1,14 +1,1 @@
-﻿  SpotLight.cpp
-  PointLight.cpp
-  Mesh.cpp
-  Material.cpp
-  Instance.cpp
-  GeometryBuilder.cpp
-src\GeometryBuilder.cpp(69): warning C4267: 'argument': conversion from 'size_t' to 'sponza::MeshId', possible loss of data
-  DirectionalLight.cpp
-  Context.cpp
-src\Context.cpp(96): warning C4267: 'argument': conversion from 'size_t' to 'sponza::InstanceId', possible loss of data
-src\Context.cpp(97): warning C4267: 'argument': conversion from 'size_t' to 'sponza::MeshId', possible loss of data
-  Camera.cpp
-  Generating Code...
-  sponza.vcxproj -> J:\Real Time Graphics\DeferMySponza - Working\DeferMySponza\build\lib\x64\Debug\v141\sponza.lib
+﻿  sponza.vcxproj -> C:\Users\FiercePC\Desktop\RealTimeGraphics\DeferMySponza - Working\DeferMySponza\build\lib\x64\Debug\v141\sponza.lib

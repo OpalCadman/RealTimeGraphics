@@ -24,6 +24,9 @@ void main(void)
 	float distance = length(L);
 	float NdotL = max(dot(N, normalize(L)), 0.0);
 
-	fragment_colour = vec4(1.0, 0.1, 1.0, 1.0);
+	if(distance < range)
+	{
+		fragment_colour = vec4(Intensity, 1.0);
+	}
 
 }
