@@ -81,6 +81,8 @@ private:
 
 	GLuint vao_;
 
+	glm::mat4 view_projection;
+
 	struct MeshGL
 	{
 		GLuint first_element_index;
@@ -102,6 +104,7 @@ private:
 	{
 		glm::mat4 projection_view_model_xform;
 		glm::mat4 model_xform;
+		
 	};
 
 	struct PerDirectionalUniform
@@ -125,6 +128,7 @@ private:
 		float range;
 		glm::vec3 Position;
 		float padding;
+		glm::mat4 light_model_xform;
 	};
 
 
