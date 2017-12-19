@@ -12,7 +12,6 @@ layout(std140) uniform PerModelUniform
 };
 
 in vec3 vertex_position;
-in vec3 normal;
 
 void main(void)
 {
