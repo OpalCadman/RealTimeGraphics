@@ -99,10 +99,10 @@ void MyView::createProgram(GLuint &program_name, GLuint &vs, GLuint &Fragemnet_s
 	program_name = glCreateProgram();
 	glAttachShader(program_name, vs);
 	glBindAttribLocation(program_name, 0, "vertex_position");
-	glDeleteShader(vs);
+	//glDeleteShader(vs);
 	glAttachShader(program_name, Fragemnet_shader);
 	glBindFragDataLocation(program_name, 0, "fragment_colour");
-	glDeleteShader(Fragemnet_shader);
+	//glDeleteShader(Fragemnet_shader);
 	glLinkProgram(program_name);
 
 	GLint link_status = 0;
@@ -220,7 +220,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	createspheremesh();
 	createconemesh();
 
-	createShader(spot_light_fs, GL_FRAGMENT_SHADER, "resource:///spot_light_fs");
+	createShader(spot_light_fs, GL_FRAGMENT_SHADER, "resource:///spot_light_fs.glsl");
 
 	createShader(point_light_vs, GL_VERTEX_SHADER, "resource:///reprise_light_vs.glsl");
 	createShader(point_light_fs, GL_FRAGMENT_SHADER, "resource:///reprise_light_fs.glsl");
@@ -230,24 +230,31 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	createShader(global_light_vs, GL_VERTEX_SHADER, "resource:///global_light_vs.glsl");
 	createShader(global_light_fs, GL_FRAGMENT_SHADER, "resource:///global_light_fs.glsl");
-
+	
 	createProgram(point_light_program_, point_light_vs, point_light_fs);
+
+	createProgram(spot_light_program_, point_light_vs, spot_light_fs);
 
 	createProgram(global_light_program, global_light_vs, global_light_fs);
 
-	createProgram(spot_light_program_, point_light_vs, spot_light_fs);
 	
 	//Creating new program that adds two out variables to the gbuffer
 	gbuffer_program_ = glCreateProgram();
 	glAttachShader(gbuffer_program_, gbuffer_vs);
 	glBindAttribLocation(gbuffer_program_, 0, "vertex_position");
 	glBindAttribLocation(gbuffer_program_, 1, "normal");
-	glDeleteShader(gbuffer_vs);
 	glAttachShader(gbuffer_program_, gbuffer_fs);
 	glBindFragDataLocation(gbuffer_program_, 0, "Positions");
 	glBindFragDataLocation(gbuffer_program_, 1, "Normals");
-	glDeleteShader(gbuffer_fs);
 	glLinkProgram(gbuffer_program_);
+
+	glDeleteShader(gbuffer_vs);
+	glDeleteShader(gbuffer_fs);
+	glDeleteShader(spot_light_fs);
+	glDeleteShader(point_light_vs);
+	glDeleteShader(point_light_fs);
+	glDeleteShader(global_light_vs);
+	glDeleteShader(global_light_fs);
 
 
 	GLint link_status = 0;
@@ -377,6 +384,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 2, point_light_ubo);
 	glUniformBlockBinding(point_light_program_, glGetUniformBlockIndex(point_light_program_, "point_lights"), 2);
+	glUniformBlockBinding(spot_light_program_, glGetUniformBlockIndex(spot_light_program_, "point_lights"), 2);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo_);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_vbo_);
@@ -592,11 +600,12 @@ void MyView::windowViewRender(tygra::Window * window)
 		spotlight.Intensity = (const glm::vec3&)spotlights[i].getIntensity();
 		spotlight.range = spotlights[i].getRange();
 		spotlight.Position = (const glm::vec3&)spotlights[i].getPosition();
-		spotlight.cone_angle = glm::radians(spotlights[i].getConeAngleDegrees());
+		spotlight.cone_angle = glm::radians(spotlights[i].getConeAngleDegrees() / 2.f);
 		spotlight.Direction = (const glm::vec3&)spotlights[i].getDirection();
 
 		auto t = glm::translate(glm::mat4(), glm::vec3(0, 0, -1));
-		auto s = glm::scale(glm::mat4(), glm::vec3(spotlight.range * glm::tan(spotlight.cone_angle)));
+		auto a = spotlight.range * glm::tan(spotlight.cone_angle);
+		auto s = glm::scale(glm::mat4(), glm::vec3(a, a, spotlight.range));
 		auto r = glm::inverse(glm::lookAt(spotlight.Position, spotlight.Position + spotlight.Direction, glm::vec3(0, 1, 0)));
 		spotlight.light_model_xform = view_projection * r * s * t;
 
