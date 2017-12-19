@@ -5,6 +5,8 @@ layout(std140) uniform point_lights
 	vec3 Intensity;
 	float range;
 	vec3 Position;
+	float cone_angle;
+	vec3 Direction;
 	float padding;
 	mat4 light_model_xform;
 };
