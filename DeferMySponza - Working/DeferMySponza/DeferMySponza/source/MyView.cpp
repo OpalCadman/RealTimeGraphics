@@ -597,6 +597,11 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	for (int i = 0; i < spotlights.size(); ++i)
 	{
+		/* ******************************************************************************************************* 
+			Make sure you refactor before starting shadows, AA or SSR!!!!!
+			******************************************************************************************************
+		
+		*/
 		spotlight.Intensity = (const glm::vec3&)spotlights[i].getIntensity();
 		spotlight.range = spotlights[i].getRange();
 		spotlight.Position = (const glm::vec3&)spotlights[i].getPosition();
