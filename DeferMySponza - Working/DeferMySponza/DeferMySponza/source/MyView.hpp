@@ -27,6 +27,8 @@ public:
 
 	void createspheremesh();
 
+	void createconemesh();
+
 	void setScene(const sponza::Context * sponza);
 
 private:
@@ -53,6 +55,8 @@ private:
 
 	GLuint point_light_program_;
 
+	GLuint spot_light_program_;
+
 	GLuint vertex_vbo_;
 
 	GLuint element_vbo_;
@@ -68,6 +72,8 @@ private:
 	GLuint point_light_vs;
 
 	GLuint point_light_fs;
+
+	GLuint spot_light_fs;
 
 	GLuint gbuffer_vs;
 
@@ -122,11 +128,13 @@ private:
 		PerDirectionalUniform directional_lights[2];
 	};
 
-	struct Point_lights
+	struct Lights
 	{
 		glm::vec3 Intensity;
 		float range;
 		glm::vec3 Position;
+		float cone_angle;
+		glm::vec3 Direction;
 		float padding;
 		glm::mat4 light_model_xform;
 	};
@@ -134,6 +142,7 @@ private:
 
 	Mesh light_quad_mesh_; // vertex array of vec2 position
 	Mesh light_sphere_mesh_; // element array into vec3 position
+	Mesh light_cone_mesh;
 
 	GLuint gbuffer_position_tex_{ 0 };
 	GLuint gbuffer_normal_tex_{ 0 };

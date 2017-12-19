@@ -176,6 +176,40 @@ void MyView::createspheremesh()
 	glBindVertexArray(0);
 }
 
+void MyView::createconemesh()
+{
+	tsl::IndexedMeshPtr mesh = tsl::createConePtr(1, 1, 6);
+	mesh = tsl::cloneIndexedMeshAsTriangleListPtr(mesh.get());
+
+	light_cone_mesh.element_count = mesh->indexCount();
+
+	glGenBuffers(1, &light_cone_mesh.vertex_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, light_cone_mesh.vertex_vbo);
+	glBufferData(GL_ARRAY_BUFFER,
+		mesh->vertexCount() * sizeof(glm::vec3),
+		mesh->positionArray(),
+		GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glGenBuffers(1, &light_cone_mesh.element_vbo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, light_cone_mesh.element_vbo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+		mesh->indexCount() * sizeof(unsigned int),
+		mesh->indexArray(),
+		GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	glGenVertexArrays(1, &light_cone_mesh.vao);
+	glBindVertexArray(light_cone_mesh.vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, light_cone_mesh.element_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, light_cone_mesh.vertex_vbo);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
+		sizeof(glm::vec3), 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+}
+
 
 void MyView::windowViewWillStart(tygra::Window * window)
 {
@@ -184,6 +218,9 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	createquadmesh();
 	createspheremesh();
+	createconemesh();
+
+	createShader(spot_light_fs, GL_FRAGMENT_SHADER, "resource:///spot_light_fs");
 
 	createShader(point_light_vs, GL_VERTEX_SHADER, "resource:///reprise_light_vs.glsl");
 	createShader(point_light_fs, GL_FRAGMENT_SHADER, "resource:///reprise_light_fs.glsl");
@@ -197,6 +234,8 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	createProgram(point_light_program_, point_light_vs, point_light_fs);
 
 	createProgram(global_light_program, global_light_vs, global_light_fs);
+
+	createProgram(spot_light_program_, point_light_vs, spot_light_fs);
 	
 	//Creating new program that adds two out variables to the gbuffer
 	gbuffer_program_ = glCreateProgram();
@@ -304,7 +343,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	glGenBuffers(1, &point_light_ubo);
 	glBindBuffer(GL_UNIFORM_BUFFER, point_light_ubo);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(Point_lights), nullptr, GL_STREAM_DRAW);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(Lights), nullptr, GL_STREAM_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	global_lights global_light;
@@ -504,7 +543,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	normal_position = glGetUniformLocation(point_light_program_, "sampler_world_normal");
 	glUniform1i(normal_position, 1);
 
-	Point_lights pointlight;
+	Lights pointlight;
 
 	glBindVertexArray(light_sphere_mesh_.vao);
 
@@ -516,6 +555,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
 	glBlendEquation(GL_FUNC_ADD);
+
 	for (int i = 0; i < pointlights.size(); ++i)
 	{
 		pointlight.Intensity = (const glm::vec3&)pointlights[i].getIntensity();
@@ -527,10 +567,44 @@ void MyView::windowViewRender(tygra::Window * window)
 		pointlight.light_model_xform = view_projection * t * s;
 
 		glBindBuffer(GL_UNIFORM_BUFFER, point_light_ubo);
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(Point_lights), &pointlight);
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(Lights), &pointlight);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 		glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, 0);
+	}
+
+	Lights spotlight;
+
+	glUseProgram(spot_light_program_);
+
+	world_position = glGetUniformLocation(spot_light_program_, "sampler_world_position");
+	glUniform1i(world_position, 0);
+
+	normal_position = glGetUniformLocation(spot_light_program_, "sampler_world_normal");
+	glUniform1i(normal_position, 1);
+
+	glBindVertexArray(light_cone_mesh.vao);
+
+	const auto &spotlights = scene_->getAllSpotLights();
+
+	for (int i = 0; i < spotlights.size(); ++i)
+	{
+		spotlight.Intensity = (const glm::vec3&)spotlights[i].getIntensity();
+		spotlight.range = spotlights[i].getRange();
+		spotlight.Position = (const glm::vec3&)spotlights[i].getPosition();
+		spotlight.cone_angle = glm::radians(spotlights[i].getConeAngleDegrees());
+		spotlight.Direction = (const glm::vec3&)spotlights[i].getDirection();
+
+		auto t = glm::translate(glm::mat4(), glm::vec3(0, 0, -1));
+		auto s = glm::scale(glm::mat4(), glm::vec3(spotlight.range * glm::tan(spotlight.cone_angle)));
+		auto r = glm::inverse(glm::lookAt(spotlight.Position, spotlight.Position + spotlight.Direction, glm::vec3(0, 1, 0)));
+		spotlight.light_model_xform = view_projection * r * s * t;
+
+		glBindBuffer(GL_UNIFORM_BUFFER, point_light_ubo);
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(Lights), &spotlight);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+		glDrawElements(GL_TRIANGLES, light_cone_mesh.element_count, GL_UNSIGNED_INT, 0);
 	}
 
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
