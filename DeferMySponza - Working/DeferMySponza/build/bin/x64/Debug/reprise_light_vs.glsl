@@ -1,20 +1,17 @@
 #version 330
 
-struct ModelData
+layout(std140) uniform point_lights
 {
-	mat4 projection_view_model_xform;
-	mat4 model_xform;
-};
-
-layout(std140) uniform PerModelUniform
-{
-	ModelData models[16];
+	vec3 Intensity;
+	float range;
+	vec3 Position;
+	float padding;
+	mat4 light_model_xform;
 };
 
 in vec3 vertex_position;
 
 void main(void)
 {
-	mat4 combined_xform = models[gl_InstanceID].projection_view_model_xform;
-	gl_Position = combined_xform * vec4(vertex_position, 1.0);
+	gl_Position = light_model_xform * vec4(vertex_position, 1.0);
 }

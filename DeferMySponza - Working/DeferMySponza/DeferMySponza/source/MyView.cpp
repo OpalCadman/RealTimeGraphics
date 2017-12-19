@@ -67,7 +67,7 @@ void MyView::drawSponza(GLuint &program_)
 
 	PerModelUniforms per_model_uniforms[16];
 
-	glm::mat4 view_projection = projection_xform * view_xform;
+	view_projection = projection_xform * view_xform;
 
 
 	for (const auto& mesh : meshes_)
@@ -324,10 +324,6 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(global_lights), &global_light);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-	glBindBuffer(GL_UNIFORM_BUFFER, point_light_ubo);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(Point_lights), 0);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
 	// Creating Vertex Array Object.
 	glGenVertexArrays(1, &vao_);
 	glBindVertexArray(vao_);
@@ -342,7 +338,6 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 2, point_light_ubo);
 	glUniformBlockBinding(point_light_program_, glGetUniformBlockIndex(point_light_program_, "point_lights"), 2);
-	glUniformBlockBinding(point_light_program_, glGetUniformBlockIndex(point_light_program_, "PerModelUniform"), 2);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo_);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_vbo_);
@@ -447,11 +442,14 @@ void MyView::windowViewRender(tygra::Window * window)
 	
 	glEnable(GL_STENCIL_TEST);
 	glStencilFunc(GL_ALWAYS, 0, ~0);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE); 
+	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+	glCullFace(GL_BACK);
 
 	glDepthMask(GL_TRUE);
 
 	glEnable(GL_DEPTH_TEST);
+
+	glDisable(GL_BLEND);
 
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
@@ -512,17 +510,27 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	const auto &pointlights = scene_->getAllPointLights();
 
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_FRONT);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_ONE);
+	glBlendEquation(GL_FUNC_ADD);
 	for (int i = 0; i < pointlights.size(); ++i)
 	{
 		pointlight.Intensity = (const glm::vec3&)pointlights[i].getIntensity();
 		pointlight.range = pointlights[i].getRange();
 		pointlight.Position = (const glm::vec3&)pointlights[i].getPosition();
+		
+		auto t = glm::translate(glm::mat4(), pointlight.Position);
+		auto s = glm::scale(glm::mat4(), glm::vec3(pointlight.range));
+		pointlight.light_model_xform = view_projection * t * s;
 
 		glBindBuffer(GL_UNIFORM_BUFFER, point_light_ubo);
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(Point_lights) * pointlights.size(), &point_light_ubo);
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(Point_lights), &pointlight);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-		glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, TGL_BUFFER_OFFSET(0));
+		glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, 0);
 	}
 
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
