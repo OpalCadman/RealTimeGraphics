@@ -25,5 +25,16 @@ void main(void)
 	float attenuation = (1.0 - smoothstep(0.0, range, distance));
 	float NdotL = max(dot(N, normalize(L)), 0.0);
 
-	fragment_colour = vec4(Intensity * NdotL * attenuation, 1.0);
+	// Do the angles.
+	float angleAttenuation = max(0.0, dot(Direction, normalize(-L)));
+	if (angleAttenuation > cos(cone_angle))
+	{
+		angleAttenuation = 1.0;
+	}
+	else
+	{
+		angleAttenuation = 0.0;
+	}
+
+	fragment_colour = vec4(Intensity * NdotL * attenuation * angleAttenuation, 1.0);
 }
