@@ -518,6 +518,10 @@ void MyView::windowViewRender(tygra::Window * window)
 		pointlight.range = pointlights[i].getRange();
 		pointlight.Position = (const glm::vec3&)pointlights[i].getPosition();
 
+		glBindBuffer(GL_UNIFORM_BUFFER, point_light_ubo);
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(Point_lights) * pointlights.size(), &point_light_ubo);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
 		glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, TGL_BUFFER_OFFSET(0));
 	}
 
