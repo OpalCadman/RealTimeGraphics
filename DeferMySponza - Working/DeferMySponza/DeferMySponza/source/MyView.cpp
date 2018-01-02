@@ -23,99 +23,6 @@ MyView::MyView()
 MyView::~MyView() {
 }
 
-void MyView::setScene(const sponza::Context * scene)
-{
-    scene_ = scene;
-}
-
-void MyView::createShader(GLuint &shader_, GLenum shaderType, std::string stringFromFile)
-{
-	GLint compile_status = 0;
-
-	shader_ = glCreateShader(shaderType);
-	std::string vs_string = tygra::createStringFromFile(stringFromFile);
-	const char *vs_code = vs_string.c_str();
-	glShaderSource(shader_, 1, (const GLchar **)&vs_code, NULL);
-	glCompileShader(shader_);
-	glGetShaderiv(shader_, GL_COMPILE_STATUS, &compile_status);
-	if (compile_status != GL_TRUE)
-	{
-		const int string_length = 1024;
-		GLchar log[string_length] = "";
-		glGetShaderInfoLog(shader_, string_length, NULL, log);
-		std::cerr << log << std::endl;
-	}
-}
-
-void MyView::drawSponza(GLuint &program_)
-{
-	GLint viewport_size[4];
-	glGetIntegerv(GL_VIEWPORT, viewport_size);
-	const float aspect_ratio = viewport_size[2] / (float)(viewport_size[3]);
-
-	glm::mat4 projection_xform = glm::perspective(glm::radians(scene_->getCamera().getVerticalFieldOfViewInDegrees()),
-		aspect_ratio,
-		scene_->getCamera().getNearPlaneDistance(), scene_->getCamera().getFarPlaneDistance());
-
-	glm::mat4 view_xform = glm::lookAt((const glm::vec3 &)scene_->getCamera().getPosition(),
-		(const glm::vec3 &)scene_->getCamera().getPosition() + (const glm::vec3 &)scene_->getCamera().getDirection(),
-		(const glm::vec3 &)scene_->getUpDirection());
-
-	glUseProgram(program_);
-	glBindVertexArray(vao_);
-
-
-	PerModelUniforms per_model_uniforms[16];
-
-	view_projection = projection_xform * view_xform;
-
-
-	for (const auto& mesh : meshes_)
-	{
-		const auto& instanceIds = scene_->getInstancesByMeshId(mesh.first);
-
-		const MeshGL& meshGl = mesh.second;
-
-		for (int i = 0; i < instanceIds.size(); i++)
-		{
-			const auto& instances = scene_->getInstanceById(instanceIds[i]);
-			glm::mat4 model_xform = glm::mat4((const glm::mat4x3 &)instances.getTransformationMatrix());
-			per_model_uniforms[i].model_xform = model_xform;
-			per_model_uniforms[i].projection_view_model_xform = view_projection * model_xform;
-		}
-
-		glBindBuffer(GL_UNIFORM_BUFFER, per_model_ubo);
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PerModelUniforms) * instanceIds.size(), &per_model_uniforms);
-		glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-		glDrawElementsInstancedBaseVertex(GL_TRIANGLES, meshGl.element_count, GL_UNSIGNED_INT, (void*)(meshGl.first_element_index * sizeof(unsigned int)), instanceIds.size(), meshGl.first_vertex_index);
-	}
-
-
-}
-
-void MyView::createProgram(GLuint &program_name, GLuint &vs, GLuint &Fragemnet_shader)
-{
-	program_name = glCreateProgram();
-	glAttachShader(program_name, vs);
-	glBindAttribLocation(program_name, 0, "vertex_position");
-	//glDeleteShader(vs);
-	glAttachShader(program_name, Fragemnet_shader);
-	glBindFragDataLocation(program_name, 0, "fragment_colour");
-	//glDeleteShader(Fragemnet_shader);
-	glLinkProgram(program_name);
-
-	GLint link_status = 0;
-	glGetProgramiv(program_name, GL_LINK_STATUS, &link_status);
-	if (link_status != GL_TRUE)
-	{
-		const int string_length = 1024;
-		GLchar log[string_length] = "";
-		glGetShaderInfoLog(program_name, string_length, NULL, log);
-		std::cerr << log << std::endl;
-	}
-}
-
 void MyView::createquadmesh()
 {
 	std::vector<glm::vec2> vertices(4);
@@ -210,6 +117,98 @@ void MyView::createconemesh()
 	glBindVertexArray(0);
 }
 
+void MyView::setScene(const sponza::Context * scene)
+{
+    scene_ = scene;
+}
+
+void MyView::createShader(GLuint &shader_, GLenum shaderType, std::string stringFromFile)
+{
+	GLint compile_status = 0;
+
+	shader_ = glCreateShader(shaderType);
+	std::string vs_string = tygra::createStringFromFile(stringFromFile);
+	const char *vs_code = vs_string.c_str();
+	glShaderSource(shader_, 1, (const GLchar **)&vs_code, NULL);
+	glCompileShader(shader_);
+	glGetShaderiv(shader_, GL_COMPILE_STATUS, &compile_status);
+	if (compile_status != GL_TRUE)
+	{
+		const int string_length = 1024;
+		GLchar log[string_length] = "";
+		glGetShaderInfoLog(shader_, string_length, NULL, log);
+		std::cerr << log << std::endl;
+	}
+}
+
+void MyView::createProgram(GLuint &program_name, GLuint &vs, GLuint &Fragemnet_shader)
+{
+	program_name = glCreateProgram();
+	glAttachShader(program_name, vs);
+	glBindAttribLocation(program_name, 0, "vertex_position");
+	//glDeleteShader(vs);
+	glAttachShader(program_name, Fragemnet_shader);
+	glBindFragDataLocation(program_name, 0, "fragment_colour");
+	//glDeleteShader(Fragemnet_shader);
+	glLinkProgram(program_name);
+
+	GLint link_status = 0;
+	glGetProgramiv(program_name, GL_LINK_STATUS, &link_status);
+	if (link_status != GL_TRUE)
+	{
+		const int string_length = 1024;
+		GLchar log[string_length] = "";
+		glGetShaderInfoLog(program_name, string_length, NULL, log);
+		std::cerr << log << std::endl;
+	}
+}
+
+void MyView::drawSponza(GLuint &program_)
+{
+	GLint viewport_size[4];
+	glGetIntegerv(GL_VIEWPORT, viewport_size);
+	const float aspect_ratio = viewport_size[2] / (float)(viewport_size[3]);
+
+	glm::mat4 projection_xform = glm::perspective(glm::radians(scene_->getCamera().getVerticalFieldOfViewInDegrees()),
+		aspect_ratio,
+		scene_->getCamera().getNearPlaneDistance(), scene_->getCamera().getFarPlaneDistance());
+
+	glm::mat4 view_xform = glm::lookAt((const glm::vec3 &)scene_->getCamera().getPosition(),
+		(const glm::vec3 &)scene_->getCamera().getPosition() + (const glm::vec3 &)scene_->getCamera().getDirection(),
+		(const glm::vec3 &)scene_->getUpDirection());
+
+	glUseProgram(program_);
+	glBindVertexArray(vao_);
+
+
+	PerModelUniforms per_model_uniforms[16];
+
+	view_projection = projection_xform * view_xform;
+
+
+	for (const auto& mesh : meshes_)
+	{
+		const auto& instanceIds = scene_->getInstancesByMeshId(mesh.first);
+
+		const MeshGL& meshGl = mesh.second;
+
+		for (int i = 0; i < instanceIds.size(); i++)
+		{
+			const auto& instances = scene_->getInstanceById(instanceIds[i]);
+			glm::mat4 model_xform = glm::mat4((const glm::mat4x3 &)instances.getTransformationMatrix());
+			per_model_uniforms[i].model_xform = model_xform;
+			per_model_uniforms[i].projection_view_model_xform = view_projection * model_xform;
+		}
+
+		glBindBuffer(GL_UNIFORM_BUFFER, per_model_ubo);
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PerModelUniforms) * instanceIds.size(), &per_model_uniforms);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+		glDrawElementsInstancedBaseVertex(GL_TRIANGLES, meshGl.element_count, GL_UNSIGNED_INT, (void*)(meshGl.first_element_index * sizeof(unsigned int)), instanceIds.size(), meshGl.first_vertex_index);
+	}
+
+
+}
 
 void MyView::windowViewWillStart(tygra::Window * window)
 {
