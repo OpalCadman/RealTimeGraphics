@@ -23,6 +23,12 @@ public:
 
 	void createProgram(GLuint &program_name, GLuint &vs, GLuint &Fragemnet_shader);
 
+	void createGbufferProgram(GLuint &program_name, GLuint &vs, GLuint &Fragment_shader);
+
+	GLuint createUniformBuffer(size_t size, void* data);
+
+	void createSponzaMesh();
+
 	void createquadmesh();
 
 	void createspheremesh();
