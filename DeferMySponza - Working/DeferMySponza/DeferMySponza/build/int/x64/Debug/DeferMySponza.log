@@ -1,9 +1,17 @@
-﻿  MyView.cpp
+﻿  MyController.cpp
+  No target GL version declared, defaulting to GL 3.3
+  For example, use #define TGL_TARGET_GL_4_1 before including tgl.h to specify OpenGL 4.1
+  Generating Code...
+  Compiling...
+  MyView.cpp
   No target GL version declared, defaulting to GL 3.3
   For example, use #define TGL_TARGET_GL_4_1 before including tgl.h to specify OpenGL 4.1
 source\MyView.cpp(219): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
 source\MyView.cpp(242): warning C4267: '=': conversion from 'size_t' to 'GLuint', possible loss of data
 source\MyView.cpp(243): warning C4267: '=': conversion from 'size_t' to 'GLuint', possible loss of data
 source\MyView.cpp(247): warning C4267: '=': conversion from 'size_t' to 'GLuint', possible loss of data
-source\MyView.cpp(378): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+source\MyView.cpp(399): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+source\MyView.cpp(703): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
+  Generating Code...
   DeferMySponza.vcxproj -> C:\Users\p4058415\Desktop\RealTimeGraphics\DeferMySponza - Working\DeferMySponza\build\bin\x64\Debug\DeferMySponza.exe
+  Copying shader files to build directory... shaders\reprise_light_fs.glsl;shaders\spot_light_fs.glsl

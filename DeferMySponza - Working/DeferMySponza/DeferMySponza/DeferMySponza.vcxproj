@@ -293,6 +293,8 @@
     <TygraShader Include="shaders\reprise_light_fs.glsl" />
     <TygraShader Include="shaders\reprise_light_vs.glsl" />
     <TygraShader Include="shaders\reprise_vs.glsl" />
+    <TygraShader Include="shaders\shadow_fs.glsl" />
+    <TygraShader Include="shaders\shadow_vs.glsl" />
     <TygraShader Include="shaders\spot_light_fs.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -13,6 +13,7 @@ layout(std140) uniform point_lights
 
 uniform sampler2DRect sampler_world_position;
 uniform sampler2DRect sampler_world_normal;
+uniform sampler2DRect sampler_shadow_texture;
 
 out vec4 fragment_colour;
 
@@ -37,5 +38,4 @@ void main(void)
 	}
 
 	fragment_colour = vec4(Intensity * NdotL * attenuation * angleAttenuation, 1.0);
-	//fragment_colour = vec4(1.0, 0.0, 1.0, 1.0);
 }

@@ -259,10 +259,12 @@ void MyView::createSponzaMesh()
 
 	glGenTextures(1, &gbuffer_position_tex_);
 	glGenTextures(1, &gbuffer_normal_tex_);
+	glGenTextures(1, &shadow_depth_tex);
 	glGenTextures(1, &gbuffer_depth_tex_);
 
 	glGenFramebuffers(1, &lbuffer_fbo_);
 	glGenFramebuffers(1, &gbuffer_fbo_);
+	glGenFramebuffers(1, &shadow_fbo_);
 	glGenRenderbuffers(1, &lbuffer_colour_rbo_);
 	glGenRenderbuffers(1, &gbuffer_colour_rbo_);
 
@@ -320,6 +322,9 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	createShader(global_light_vs, GL_VERTEX_SHADER, "resource:///global_light_vs.glsl");
 	createShader(global_light_fs, GL_FRAGMENT_SHADER, "resource:///global_light_fs.glsl");
+
+	createShader(shadow_vs, GL_VERTEX_SHADER, "resource:///shadow_vs.glsl");
+	createShader(shadow_fs, GL_FRAGMENT_SHADER, "resource:///shadow_fs.glsl");
 	
 	createProgram(point_light_program_, point_light_vs, point_light_fs);
 
@@ -328,6 +333,22 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	createProgram(global_light_program, global_light_vs, global_light_fs);
 
 	createGbufferProgram(gbuffer_program_, gbuffer_vs, gbuffer_fs);
+
+	shadow_program_ = glCreateProgram();
+	glAttachShader(shadow_program_, shadow_vs);
+	glBindAttribLocation(shadow_program_, 0, "vertex_position");
+	glAttachShader(shadow_program_, shadow_fs);
+	glLinkProgram(shadow_program_);
+
+	GLint link_status = 0;
+	glGetProgramiv(shadow_program_, GL_LINK_STATUS, &link_status);
+	if (link_status != GL_TRUE)
+	{
+		const int string_length = 1024;
+		GLchar log[string_length] = "";
+		glGetShaderInfoLog(shadow_program_, string_length, NULL, log);
+		std::cerr << log << std::endl;
+	}
 
 	glDeleteShader(gbuffer_vs);
 	glDeleteShader(gbuffer_fs);
@@ -338,7 +359,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glDeleteShader(global_light_fs);
 
 	
-	GLint link_status = 0;
+	link_status = 0;
 	glGetProgramiv(gbuffer_program_, GL_LINK_STATUS, &link_status);
 	if (link_status != GL_TRUE)
 	{
@@ -389,6 +410,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	///Don't forget to add perModelUniform to VS
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, per_model_ubo);
 	glUniformBlockBinding(gbuffer_program_, glGetUniformBlockIndex(gbuffer_program_, "PerModelUniform"), 0);
+	glUniformBlockBinding(shadow_program_, glGetUniformBlockIndex(gbuffer_program_, "PerModelUniform"), 0);
 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, global_light_ubo);
 	glUniformBlockBinding(global_light_program, glGetUniformBlockIndex(global_light_program, "global_lights"), 1);
@@ -429,6 +451,9 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_depth_tex_);
 	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_DEPTH24_STENCIL8, width, height, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0);
 
+	glBindTexture(GL_TEXTURE_RECTANGLE, shadow_depth_tex);
+	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_DEPTH_COMPONENT32F, 512, 512, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0);
+
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
 	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, 0);
 
@@ -446,6 +471,16 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	framebuffer_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE) {
 		std::cerr << "Broke Yo" << std::endl;
+		assert(false);
+	}
+
+	//shadow fbo
+	glBindFramebuffer(GL_FRAMEBUFFER, shadow_fbo_);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_RECTANGLE, shadow_depth_tex, 0);
+
+	framebuffer_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE) {
+		tglDebugMessage(GL_DEBUG_SEVERITY_HIGH_ARB, "framebuffer not complete");
 		assert(false);
 	}
 
@@ -602,6 +637,9 @@ void MyView::windowViewRender(tygra::Window * window)
 	normal_position = glGetUniformLocation(spot_light_program_, "sampler_world_normal");
 	glUniform1i(normal_position, 1);
 
+	GLuint shadow_texture = glGetUniformLocation(spot_light_program_, "sampler_shadow_texture");
+	glUniform1i(shadow_texture, 2);
+
 	glBindVertexArray(light_cone_mesh.vao);
 
 	const auto &spotlights = scene_->getAllSpotLights();
@@ -615,7 +653,64 @@ void MyView::windowViewRender(tygra::Window * window)
 		*/
 		if (spotlights[i].getCastShadow() == true)
 		{
-			
+			glBindVertexArray(vao_);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_RECTANGLE, 0);
+			glUseProgram(shadow_program_);
+			glEnable(GL_DEPTH_TEST);
+			glBindFramebuffer(GL_FRAMEBUFFER, shadow_fbo_);
+			glClear(GL_DEPTH_BUFFER_BIT);
+			/*Find out what other information I need! :D*/
+			/*then pass up new projection stuff like in gbuffer but different stuff. 
+			Make new framebuffer with aspect ratio of somethign like 512 * 512 (Make it square)*/
+
+			glViewport(0, 0, 512, 512);
+
+			GLint viewport_size[4];
+			glGetIntegerv(GL_VIEWPORT, viewport_size);
+			const float aspect_ratio = viewport_size[2] / (float)(viewport_size[3]);
+
+			glm::mat4 projection_xform = glm::perspective(glm::radians(spotlights[i].getConeAngleDegrees()),
+				1.f,
+				0.1f, spotlights[i].getRange());
+
+			glm::mat4 view_xform = glm::lookAt((const glm::vec3 &)spotlights[i].getPosition(),
+				(const glm::vec3 &)spotlights[i].getPosition() + (const glm::vec3 &)spotlights[i].getDirection(),
+				(const glm::vec3 &)scene_->getUpDirection());
+
+			PerModelUniforms per_model_uniforms[16];
+
+			auto vp = projection_xform * view_xform;
+
+			for (const auto& mesh : meshes_)
+			{
+				const auto& instanceIds = scene_->getInstancesByMeshId(mesh.first);
+
+				const MeshGL& meshGl = mesh.second;
+
+				for (int i = 0; i < instanceIds.size(); i++)
+				{
+					const auto& instances = scene_->getInstanceById(instanceIds[i]);
+					glm::mat4 model_xform = glm::mat4((const glm::mat4x3 &)instances.getTransformationMatrix());
+					per_model_uniforms[i].model_xform = model_xform;
+					per_model_uniforms[i].projection_view_model_xform = vp * model_xform;
+				}
+
+				glBindBuffer(GL_UNIFORM_BUFFER, per_model_ubo);
+				glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PerModelUniforms) * instanceIds.size(), &per_model_uniforms);
+				glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+				glDrawElementsInstancedBaseVertex(GL_TRIANGLES, meshGl.element_count, GL_UNSIGNED_INT, (void*)(meshGl.first_element_index * sizeof(unsigned int)), instanceIds.size(), meshGl.first_vertex_index);
+			}
+
+
+			glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
+			glViewport(0, 0, 1280, 720);
+			glUseProgram(spot_light_program_);
+			glBindVertexArray(light_cone_mesh.vao);
+			glDisable(GL_DEPTH_TEST);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_RECTANGLE, shadow_depth_tex);
 		}
 
 		spotlight.Intensity = (const glm::vec3&)spotlights[i].getIntensity();
