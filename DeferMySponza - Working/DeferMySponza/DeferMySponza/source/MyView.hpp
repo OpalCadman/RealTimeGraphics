@@ -63,6 +63,8 @@ private:
 
 	GLuint spot_light_program_;
 
+	GLuint spot_light_shadow_program_;
+
 	GLuint shadow_program_;
 
 	GLuint vertex_vbo_;
@@ -82,6 +84,8 @@ private:
 	GLuint point_light_fs;
 
 	GLuint spot_light_fs;
+
+	GLuint spot_light_shadow_fs;
 
 	GLuint gbuffer_vs;
 

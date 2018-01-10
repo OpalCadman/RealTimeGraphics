@@ -13,7 +13,6 @@ layout(std140) uniform point_lights
 
 uniform sampler2DRect sampler_world_position;
 uniform sampler2DRect sampler_world_normal;
-uniform sampler2DRect sampler_shadow_texture;
 
 out vec4 fragment_colour;
 

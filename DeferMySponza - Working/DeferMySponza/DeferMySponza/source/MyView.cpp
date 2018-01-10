@@ -156,6 +156,7 @@ void MyView::createProgram(GLuint &program_name, GLuint &vs, GLuint &Fragment_sh
 	glGetProgramiv(program_name, GL_LINK_STATUS, &link_status);
 	if (link_status != GL_TRUE)
 	{
+		//assert(false);
 		const int string_length = 1024;
 		GLchar log[string_length] = "";
 		glGetShaderInfoLog(program_name, string_length, NULL, log);
@@ -325,10 +326,14 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	createShader(shadow_vs, GL_VERTEX_SHADER, "resource:///shadow_vs.glsl");
 	createShader(shadow_fs, GL_FRAGMENT_SHADER, "resource:///shadow_fs.glsl");
+
+	createShader(spot_light_shadow_fs, GL_FRAGMENT_SHADER, "resource:///spot_light_shadow_fs.glsl");
 	
 	createProgram(point_light_program_, point_light_vs, point_light_fs);
 
 	createProgram(spot_light_program_, point_light_vs, spot_light_fs);
+
+	createProgram(spot_light_shadow_program_, point_light_vs, spot_light_shadow_fs);
 
 	createProgram(global_light_program, global_light_vs, global_light_fs);
 
@@ -418,6 +423,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glBindBufferBase(GL_UNIFORM_BUFFER, 2, point_light_ubo);
 	glUniformBlockBinding(point_light_program_, glGetUniformBlockIndex(point_light_program_, "point_lights"), 2);
 	glUniformBlockBinding(spot_light_program_, glGetUniformBlockIndex(spot_light_program_, "point_lights"), 2);
+	glUniformBlockBinding(spot_light_shadow_program_, glGetUniformBlockIndex(spot_light_shadow_program_, "point_lights"), 2);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo_);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_vbo_);
@@ -431,6 +437,25 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	glClearStencil(0x80);
 	glClearDepth(1.0);
+
+	glUseProgram(spot_light_program_);
+
+	GLuint world_position = glGetUniformLocation(spot_light_program_, "sampler_world_position");
+	glUniform1i(world_position, 0);
+
+	GLuint normal_position = glGetUniformLocation(spot_light_program_, "sampler_world_normal");
+	glUniform1i(normal_position, 1);
+
+	glUseProgram(spot_light_shadow_program_);
+
+	world_position = glGetUniformLocation(spot_light_shadow_program_, "sampler_world_position");
+	glUniform1i(world_position, 0);
+
+	normal_position = glGetUniformLocation(spot_light_shadow_program_, "sampler_world_normal");
+	glUniform1i(normal_position, 1);
+
+	GLuint shadow_texture = glGetUniformLocation(spot_light_shadow_program_, "sampler_shadow_texture");
+	glUniform1i(shadow_texture, 2);
 }
 
 
@@ -451,8 +476,12 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_depth_tex_);
 	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_DEPTH24_STENCIL8, width, height, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0);
 
-	glBindTexture(GL_TEXTURE_RECTANGLE, shadow_depth_tex);
-	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_DEPTH_COMPONENT32F, 512, 512, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0);
+	glBindTexture(GL_TEXTURE_2D, shadow_depth_tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, 512, 512, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
 	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, 0);
@@ -476,7 +505,7 @@ void MyView::windowViewDidReset(tygra::Window * window,
 
 	//shadow fbo
 	glBindFramebuffer(GL_FRAMEBUFFER, shadow_fbo_);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_RECTANGLE, shadow_depth_tex, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadow_depth_tex, 0);
 
 	framebuffer_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE) {
@@ -627,20 +656,9 @@ void MyView::windowViewRender(tygra::Window * window)
 		glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, 0);
 	}
 
-	Lights spotlight;
-
-	glUseProgram(spot_light_program_);
-
-	world_position = glGetUniformLocation(spot_light_program_, "sampler_world_position");
-	glUniform1i(world_position, 0);
-
-	normal_position = glGetUniformLocation(spot_light_program_, "sampler_world_normal");
-	glUniform1i(normal_position, 1);
-
-	GLuint shadow_texture = glGetUniformLocation(spot_light_program_, "sampler_shadow_texture");
-	glUniform1i(shadow_texture, 2);
-
 	glBindVertexArray(light_cone_mesh.vao);
+
+	Lights spotlight;
 
 	const auto &spotlights = scene_->getAllSpotLights();
 
@@ -655,7 +673,7 @@ void MyView::windowViewRender(tygra::Window * window)
 		{
 			glBindVertexArray(vao_);
 			glActiveTexture(GL_TEXTURE2);
-			glBindTexture(GL_TEXTURE_RECTANGLE, 0);
+			glBindTexture(GL_TEXTURE_2D, 0);
 			glUseProgram(shadow_program_);
 			glEnable(GL_DEPTH_TEST);
 			glBindFramebuffer(GL_FRAMEBUFFER, shadow_fbo_);
@@ -706,12 +724,21 @@ void MyView::windowViewRender(tygra::Window * window)
 
 			glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
 			glViewport(0, 0, 1280, 720);
-			glUseProgram(spot_light_program_);
 			glBindVertexArray(light_cone_mesh.vao);
 			glDisable(GL_DEPTH_TEST);
 			glActiveTexture(GL_TEXTURE2);
-			glBindTexture(GL_TEXTURE_RECTANGLE, shadow_depth_tex);
+			glBindTexture(GL_TEXTURE_2D, shadow_depth_tex);
+			
+			glUseProgram(spot_light_shadow_program_);
+
+			auto location = glGetUniformLocation(spot_light_shadow_program_, "shadow_vp");
+			glUniformMatrix4fv(location, 1, GL_FALSE, &vp[0][0]);
 		}
+		else
+		{
+			glUseProgram(spot_light_program_);
+		}
+
 
 		spotlight.Intensity = (const glm::vec3&)spotlights[i].getIntensity();
 		spotlight.range = spotlights[i].getRange();
