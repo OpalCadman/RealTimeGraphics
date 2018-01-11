@@ -664,11 +664,6 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	for (int i = 0; i < spotlights.size(); ++i)
 	{
-		/* ******************************************************************************************************* 
-			Make sure you refactor before starting shadows + AA
-			******************************************************************************************************
-		
-		*/
 		if (spotlights[i].getCastShadow() == true)
 		{
 			glBindVertexArray(vao_);
