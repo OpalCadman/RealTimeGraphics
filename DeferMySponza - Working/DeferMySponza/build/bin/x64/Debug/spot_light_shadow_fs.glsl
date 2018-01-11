@@ -44,7 +44,7 @@ void main(void)
 	vec4 lightpos = shadow_vp * vec4(P, 1);
 	lightpos.xyz = lightpos.xyz / lightpos.w;
 	lightpos.xyz = lightpos.xyz / 2 + 0.5;
-	float texDepth = texture(sampler_shadow_texture, lightpos.x);
+	float texDepth = texture(sampler_shadow_texture, lightpos.xy).r;
 	if (texDepth < lightpos.z)
 	{
 		visibility = 0.0;
