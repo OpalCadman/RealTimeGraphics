@@ -477,7 +477,7 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_DEPTH24_STENCIL8, width, height, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0);
 
 	glBindTexture(GL_TEXTURE_2D, shadow_depth_tex);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, 512, 512, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, 1024, 1024, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -682,7 +682,7 @@ void MyView::windowViewRender(tygra::Window * window)
 			/*then pass up new projection stuff like in gbuffer but different stuff. 
 			Make new framebuffer with aspect ratio of somethign like 512 * 512 (Make it square)*/
 
-			glViewport(0, 0, 512, 512);
+			glViewport(0, 0, 1024, 1024);
 
 			GLint viewport_size[4];
 			glGetIntegerv(GL_VIEWPORT, viewport_size);
