@@ -1,9 +1,1 @@
-﻿  MyView.cpp
-  No target GL version declared, defaulting to GL 3.3
-  For example, use #define TGL_TARGET_GL_4_1 before including tgl.h to specify OpenGL 4.1
-source\MyView.cpp(207): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
-source\MyView.cpp(296): warning C4267: '=': conversion from 'size_t' to 'GLuint', possible loss of data
-source\MyView.cpp(297): warning C4267: '=': conversion from 'size_t' to 'GLuint', possible loss of data
-source\MyView.cpp(301): warning C4267: '=': conversion from 'size_t' to 'GLuint', possible loss of data
-source\MyView.cpp(366): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
-  DeferMySponza.vcxproj -> C:\Users\FiercePC\Desktop\RealTimeGraphics\DeferMySponza - Working\DeferMySponza\build\bin\x64\Debug\DeferMySponza.exe
+﻿  DeferMySponza.vcxproj -> C:\Users\p4058415\Desktop\RealTimeGraphics\DeferMySponza - Working\DeferMySponza\build\bin\x64\Debug\DeferMySponza.exe

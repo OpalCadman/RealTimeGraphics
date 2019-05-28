@@ -141,13 +141,13 @@ void MyView::createShader(GLuint &shader_, GLenum shaderType, std::string string
 	}
 }
 
-void MyView::createProgram(GLuint &program_name, GLuint &vs, GLuint &Fragemnet_shader)
+void MyView::createProgram(GLuint &program_name, GLuint &vs, GLuint &Fragment_shader)
 {
 	program_name = glCreateProgram();
 	glAttachShader(program_name, vs);
 	glBindAttribLocation(program_name, 0, "vertex_position");
 	//glDeleteShader(vs);
-	glAttachShader(program_name, Fragemnet_shader);
+	glAttachShader(program_name, Fragment_shader);
 	glBindFragDataLocation(program_name, 0, "fragment_colour");
 	//glDeleteShader(Fragemnet_shader);
 	glLinkProgram(program_name);
@@ -156,11 +156,24 @@ void MyView::createProgram(GLuint &program_name, GLuint &vs, GLuint &Fragemnet_s
 	glGetProgramiv(program_name, GL_LINK_STATUS, &link_status);
 	if (link_status != GL_TRUE)
 	{
+		//assert(false);
 		const int string_length = 1024;
 		GLchar log[string_length] = "";
 		glGetShaderInfoLog(program_name, string_length, NULL, log);
 		std::cerr << log << std::endl;
 	}
+}
+
+void MyView::createGbufferProgram(GLuint &program_name, GLuint &vs, GLuint &Fragment_shader)
+{
+	program_name = glCreateProgram();
+	glAttachShader(program_name, vs);
+	glBindAttribLocation(program_name, 0, "vertex_position");
+	glBindAttribLocation(program_name, 1, "normal");
+	glAttachShader(program_name, Fragment_shader);
+	glBindFragDataLocation(program_name, 0, "Positions");
+	glBindFragDataLocation(program_name, 1, "Normals");
+	glLinkProgram(program_name);
 }
 
 void MyView::drawSponza(GLuint &program_)
@@ -210,74 +223,8 @@ void MyView::drawSponza(GLuint &program_)
 
 }
 
-void MyView::windowViewWillStart(tygra::Window * window)
+void MyView::createSponzaMesh()
 {
-	assert(scene_ != nullptr);
-
-
-	createquadmesh();
-	createspheremesh();
-	createconemesh();
-
-	createShader(spot_light_fs, GL_FRAGMENT_SHADER, "resource:///spot_light_fs.glsl");
-
-	createShader(point_light_vs, GL_VERTEX_SHADER, "resource:///reprise_light_vs.glsl");
-	createShader(point_light_fs, GL_FRAGMENT_SHADER, "resource:///reprise_light_fs.glsl");
-
-	createShader(gbuffer_vs, GL_VERTEX_SHADER, "resource:///reprise_gbuffer_vs.glsl");
-	createShader(gbuffer_fs, GL_FRAGMENT_SHADER, "resource:///reprise_gbuffer_fs.glsl");
-
-	createShader(global_light_vs, GL_VERTEX_SHADER, "resource:///global_light_vs.glsl");
-	createShader(global_light_fs, GL_FRAGMENT_SHADER, "resource:///global_light_fs.glsl");
-	
-	createProgram(point_light_program_, point_light_vs, point_light_fs);
-
-	createProgram(spot_light_program_, point_light_vs, spot_light_fs);
-
-	createProgram(global_light_program, global_light_vs, global_light_fs);
-
-	
-	//Creating new program that adds two out variables to the gbuffer
-	gbuffer_program_ = glCreateProgram();
-	glAttachShader(gbuffer_program_, gbuffer_vs);
-	glBindAttribLocation(gbuffer_program_, 0, "vertex_position");
-	glBindAttribLocation(gbuffer_program_, 1, "normal");
-	glAttachShader(gbuffer_program_, gbuffer_fs);
-	glBindFragDataLocation(gbuffer_program_, 0, "Positions");
-	glBindFragDataLocation(gbuffer_program_, 1, "Normals");
-	glLinkProgram(gbuffer_program_);
-
-	glDeleteShader(gbuffer_vs);
-	glDeleteShader(gbuffer_fs);
-	glDeleteShader(spot_light_fs);
-	glDeleteShader(point_light_vs);
-	glDeleteShader(point_light_fs);
-	glDeleteShader(global_light_vs);
-	glDeleteShader(global_light_fs);
-
-
-	GLint link_status = 0;
-	glGetProgramiv(gbuffer_program_, GL_LINK_STATUS, &link_status);
-	if (link_status != GL_TRUE)
-	{
-		const int string_length = 1024;
-		GLchar log[string_length] = "";
-		glGetShaderInfoLog(gbuffer_program_, string_length, NULL, log);
-		std::cerr << log << std::endl;
-	}
-
-	link_status = 0;
-	glGetProgramiv(global_light_program, GL_LINK_STATUS, &link_status);
-	if (link_status != GL_TRUE)
-	{
-		const int string_length = 1024;
-		GLchar log[string_length] = "";
-		glGetShaderInfoLog(global_light_program, string_length, NULL, log);
-		std::cerr << log << std::endl;
-	}
-
-
-
 	sponza::GeometryBuilder builder;
 	const auto& scene_meshes = builder.getAllMeshes();
 
@@ -313,10 +260,12 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	glGenTextures(1, &gbuffer_position_tex_);
 	glGenTextures(1, &gbuffer_normal_tex_);
+	glGenTextures(1, &shadow_depth_tex);
 	glGenTextures(1, &gbuffer_depth_tex_);
 
 	glGenFramebuffers(1, &lbuffer_fbo_);
 	glGenFramebuffers(1, &gbuffer_fbo_);
+	glGenFramebuffers(1, &shadow_fbo_);
 	glGenRenderbuffers(1, &lbuffer_colour_rbo_);
 	glGenRenderbuffers(1, &gbuffer_colour_rbo_);
 
@@ -341,16 +290,105 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glBindBuffer(GL_UNIFORM_BUFFER, per_model_ubo);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(PerModelUniforms) * 16, nullptr, GL_STREAM_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-	
-	glGenBuffers(1, &global_light_ubo);
-	glBindBuffer(GL_UNIFORM_BUFFER, global_light_ubo);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(global_lights), nullptr, GL_STREAM_DRAW);
+}
+
+GLuint MyView::createUniformBuffer(size_t size, void* data)
+{
+	GLuint name = 0;
+	//data and size are what you pass in for sizeof() and null.
+	glGenBuffers(1, &name);
+	glBindBuffer(GL_UNIFORM_BUFFER, name);
+	glBufferData(GL_UNIFORM_BUFFER, size, data, GL_STREAM_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-	glGenBuffers(1, &point_light_ubo);
-	glBindBuffer(GL_UNIFORM_BUFFER, point_light_ubo);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(Lights), nullptr, GL_STREAM_DRAW);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	return name;
+}
+
+void MyView::windowViewWillStart(tygra::Window * window)
+{
+	assert(scene_ != nullptr);
+
+
+	createquadmesh();
+	createspheremesh();
+	createconemesh();
+
+	createShader(spot_light_fs, GL_FRAGMENT_SHADER, "resource:///spot_light_fs.glsl");
+
+	createShader(point_light_vs, GL_VERTEX_SHADER, "resource:///reprise_light_vs.glsl");
+	createShader(point_light_fs, GL_FRAGMENT_SHADER, "resource:///reprise_light_fs.glsl");
+
+	createShader(gbuffer_vs, GL_VERTEX_SHADER, "resource:///reprise_gbuffer_vs.glsl");
+	createShader(gbuffer_fs, GL_FRAGMENT_SHADER, "resource:///reprise_gbuffer_fs.glsl");
+
+	createShader(global_light_vs, GL_VERTEX_SHADER, "resource:///global_light_vs.glsl");
+	createShader(global_light_fs, GL_FRAGMENT_SHADER, "resource:///global_light_fs.glsl");
+
+	createShader(shadow_vs, GL_VERTEX_SHADER, "resource:///shadow_vs.glsl");
+	createShader(shadow_fs, GL_FRAGMENT_SHADER, "resource:///shadow_fs.glsl");
+
+	createShader(spot_light_shadow_fs, GL_FRAGMENT_SHADER, "resource:///spot_light_shadow_fs.glsl");
+	
+	createProgram(point_light_program_, point_light_vs, point_light_fs);
+
+	createProgram(spot_light_program_, point_light_vs, spot_light_fs);
+
+	createProgram(spot_light_shadow_program_, point_light_vs, spot_light_shadow_fs);
+
+	createProgram(global_light_program, global_light_vs, global_light_fs);
+
+	createGbufferProgram(gbuffer_program_, gbuffer_vs, gbuffer_fs);
+
+	shadow_program_ = glCreateProgram();
+	glAttachShader(shadow_program_, shadow_vs);
+	glBindAttribLocation(shadow_program_, 0, "vertex_position");
+	glAttachShader(shadow_program_, shadow_fs);
+	glLinkProgram(shadow_program_);
+
+	GLint link_status = 0;
+	glGetProgramiv(shadow_program_, GL_LINK_STATUS, &link_status);
+	if (link_status != GL_TRUE)
+	{
+		const int string_length = 1024;
+		GLchar log[string_length] = "";
+		glGetShaderInfoLog(shadow_program_, string_length, NULL, log);
+		std::cerr << log << std::endl;
+	}
+
+	glDeleteShader(gbuffer_vs);
+	glDeleteShader(gbuffer_fs);
+	glDeleteShader(spot_light_fs);
+	glDeleteShader(point_light_vs);
+	glDeleteShader(point_light_fs);
+	glDeleteShader(global_light_vs);
+	glDeleteShader(global_light_fs);
+
+	
+	link_status = 0;
+	glGetProgramiv(gbuffer_program_, GL_LINK_STATUS, &link_status);
+	if (link_status != GL_TRUE)
+	{
+		const int string_length = 1024;
+		GLchar log[string_length] = "";
+		glGetShaderInfoLog(gbuffer_program_, string_length, NULL, log);
+		std::cerr << log << std::endl;
+	}
+
+	link_status = 0;
+	glGetProgramiv(global_light_program, GL_LINK_STATUS, &link_status);
+	if (link_status != GL_TRUE)
+	{
+		const int string_length = 1024;
+		GLchar log[string_length] = "";
+		glGetShaderInfoLog(global_light_program, string_length, NULL, log);
+		std::cerr << log << std::endl;
+	}
+
+	createSponzaMesh();
+
+	global_light_ubo = createUniformBuffer(sizeof(global_lights), nullptr);
+	
+	point_light_ubo = createUniformBuffer(sizeof(Lights), nullptr);
 
 	global_lights global_light;
 
@@ -377,6 +415,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	///Don't forget to add perModelUniform to VS
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, per_model_ubo);
 	glUniformBlockBinding(gbuffer_program_, glGetUniformBlockIndex(gbuffer_program_, "PerModelUniform"), 0);
+	glUniformBlockBinding(shadow_program_, glGetUniformBlockIndex(gbuffer_program_, "PerModelUniform"), 0);
 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, global_light_ubo);
 	glUniformBlockBinding(global_light_program, glGetUniformBlockIndex(global_light_program, "global_lights"), 1);
@@ -384,6 +423,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glBindBufferBase(GL_UNIFORM_BUFFER, 2, point_light_ubo);
 	glUniformBlockBinding(point_light_program_, glGetUniformBlockIndex(point_light_program_, "point_lights"), 2);
 	glUniformBlockBinding(spot_light_program_, glGetUniformBlockIndex(spot_light_program_, "point_lights"), 2);
+	glUniformBlockBinding(spot_light_shadow_program_, glGetUniformBlockIndex(spot_light_shadow_program_, "point_lights"), 2);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo_);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_vbo_);
@@ -397,6 +437,25 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	glClearStencil(0x80);
 	glClearDepth(1.0);
+
+	glUseProgram(spot_light_program_);
+
+	GLuint world_position = glGetUniformLocation(spot_light_program_, "sampler_world_position");
+	glUniform1i(world_position, 0);
+
+	GLuint normal_position = glGetUniformLocation(spot_light_program_, "sampler_world_normal");
+	glUniform1i(normal_position, 1);
+
+	glUseProgram(spot_light_shadow_program_);
+
+	world_position = glGetUniformLocation(spot_light_shadow_program_, "sampler_world_position");
+	glUniform1i(world_position, 0);
+
+	normal_position = glGetUniformLocation(spot_light_shadow_program_, "sampler_world_normal");
+	glUniform1i(normal_position, 1);
+
+	GLuint shadow_texture = glGetUniformLocation(spot_light_shadow_program_, "sampler_shadow_texture");
+	glUniform1i(shadow_texture, 2);
 }
 
 
@@ -417,6 +476,13 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_depth_tex_);
 	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_DEPTH24_STENCIL8, width, height, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, 0);
 
+	glBindTexture(GL_TEXTURE_2D, shadow_depth_tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, 1024, 1024, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
 	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, 0);
 
@@ -434,6 +500,16 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	framebuffer_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE) {
 		std::cerr << "Broke Yo" << std::endl;
+		assert(false);
+	}
+
+	//shadow fbo
+	glBindFramebuffer(GL_FRAMEBUFFER, shadow_fbo_);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadow_depth_tex, 0);
+
+	framebuffer_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE) {
+		tglDebugMessage(GL_DEBUG_SEVERITY_HIGH_ARB, "framebuffer not complete");
 		assert(false);
 	}
 
@@ -580,27 +656,85 @@ void MyView::windowViewRender(tygra::Window * window)
 		glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, 0);
 	}
 
-	Lights spotlight;
-
-	glUseProgram(spot_light_program_);
-
-	world_position = glGetUniformLocation(spot_light_program_, "sampler_world_position");
-	glUniform1i(world_position, 0);
-
-	normal_position = glGetUniformLocation(spot_light_program_, "sampler_world_normal");
-	glUniform1i(normal_position, 1);
-
 	glBindVertexArray(light_cone_mesh.vao);
+
+	Lights spotlight;
 
 	const auto &spotlights = scene_->getAllSpotLights();
 
 	for (int i = 0; i < spotlights.size(); ++i)
 	{
-		/* ******************************************************************************************************* 
-			Make sure you refactor before starting shadows, AA or SSR!!!!!
-			******************************************************************************************************
-		
-		*/
+		if (spotlights[i].getCastShadow() == true)
+		{
+			glBindVertexArray(vao_);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, 0);
+			glUseProgram(shadow_program_);
+			glEnable(GL_DEPTH_TEST);
+			glBindFramebuffer(GL_FRAMEBUFFER, shadow_fbo_);
+			glClear(GL_DEPTH_BUFFER_BIT);
+			/*Find out what other information I need! :D*/
+			/*then pass up new projection stuff like in gbuffer but different stuff. 
+			Make new framebuffer with aspect ratio of somethign like 512 * 512 (Make it square)*/
+
+			glViewport(0, 0, 1024, 1024);
+
+			GLint viewport_size[4];
+			glGetIntegerv(GL_VIEWPORT, viewport_size);
+			const float aspect_ratio = viewport_size[2] / (float)(viewport_size[3]);
+
+			glm::mat4 projection_xform = glm::perspective(glm::radians(spotlights[i].getConeAngleDegrees()),
+				1.f,
+				0.1f, spotlights[i].getRange());
+
+			glm::mat4 view_xform = glm::lookAt((const glm::vec3 &)spotlights[i].getPosition(),
+				(const glm::vec3 &)spotlights[i].getPosition() + (const glm::vec3 &)spotlights[i].getDirection(),
+				(const glm::vec3 &)scene_->getUpDirection());
+
+			PerModelUniforms per_model_uniforms[16];
+
+			auto vp = projection_xform * view_xform;
+
+			for (const auto& mesh : meshes_)
+			{
+				const auto& instanceIds = scene_->getInstancesByMeshId(mesh.first);
+
+				const MeshGL& meshGl = mesh.second;
+
+				for (int i = 0; i < instanceIds.size(); i++)
+				{
+					const auto& instances = scene_->getInstanceById(instanceIds[i]);
+					glm::mat4 model_xform = glm::mat4((const glm::mat4x3 &)instances.getTransformationMatrix());
+					per_model_uniforms[i].model_xform = model_xform;
+					per_model_uniforms[i].projection_view_model_xform = vp * model_xform;
+				}
+
+				glBindBuffer(GL_UNIFORM_BUFFER, per_model_ubo);
+				glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PerModelUniforms) * instanceIds.size(), &per_model_uniforms);
+				glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+				glDrawElementsInstancedBaseVertex(GL_TRIANGLES, meshGl.element_count, GL_UNSIGNED_INT, (void*)(meshGl.first_element_index * sizeof(unsigned int)), instanceIds.size(), meshGl.first_vertex_index);
+			}
+
+
+			glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
+			glViewport(0, 0, 1280, 720);
+			glBindVertexArray(light_cone_mesh.vao);
+			glDisable(GL_DEPTH_TEST);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, shadow_depth_tex);
+			
+			glUseProgram(spot_light_shadow_program_);
+
+			auto location = glGetUniformLocation(spot_light_shadow_program_, "shadow_vp");
+			glUniformMatrix4fv(location, 1, GL_FALSE, &vp[0][0]);
+		}
+		else
+		{
+			glUseProgram(spot_light_program_);
+		}
+
+
 		spotlight.Intensity = (const glm::vec3&)spotlights[i].getIntensity();
 		spotlight.range = spotlights[i].getRange();
 		spotlight.Position = (const glm::vec3&)spotlights[i].getPosition();

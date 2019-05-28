@@ -37,5 +37,4 @@ void main(void)
 	}
 
 	fragment_colour = vec4(Intensity * NdotL * attenuation * angleAttenuation, 1.0);
-	//fragment_colour = vec4(1.0, 0.0, 1.0, 1.0);
 }

@@ -23,6 +23,12 @@ public:
 
 	void createProgram(GLuint &program_name, GLuint &vs, GLuint &Fragemnet_shader);
 
+	void createGbufferProgram(GLuint &program_name, GLuint &vs, GLuint &Fragment_shader);
+
+	GLuint createUniformBuffer(size_t size, void* data);
+
+	void createSponzaMesh();
+
 	void createquadmesh();
 
 	void createspheremesh();
@@ -57,6 +63,10 @@ private:
 
 	GLuint spot_light_program_;
 
+	GLuint spot_light_shadow_program_;
+
+	GLuint shadow_program_;
+
 	GLuint vertex_vbo_;
 
 	GLuint element_vbo_;
@@ -75,6 +85,8 @@ private:
 
 	GLuint spot_light_fs;
 
+	GLuint spot_light_shadow_fs;
+
 	GLuint gbuffer_vs;
 
 	GLuint gbuffer_fs;
@@ -82,6 +94,10 @@ private:
 	GLuint global_light_fs;
 
 	GLuint global_light_vs;
+
+	GLuint shadow_vs;
+
+	GLuint shadow_fs;
 
 	GLuint per_model_ubo;
 
@@ -148,8 +164,11 @@ private:
 	GLuint gbuffer_normal_tex_{ 0 };
 	GLuint gbuffer_depth_tex_{ 0 };
 
+	GLuint shadow_depth_tex{ 0 };
+
 	GLuint lbuffer_fbo_{ 0 };
 	GLuint gbuffer_fbo_{ 0 };
+	GLuint shadow_fbo_{ 0 };
 	GLuint lbuffer_colour_rbo_{ 0 };
 	GLuint gbuffer_colour_rbo_{ 0 };
 
